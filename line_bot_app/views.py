@@ -8,9 +8,10 @@ from django.views.decorators.csrf import csrf_exempt
 from linebot import LineBotApi, WebhookParser
 from linebot.exceptions import InvalidSignatureError, LineBotApiError
 from linebot.models import MessageEvent, TextSendMessage
-
-line_bot_api = LineBotApi(settings.LINE_CHANNEL_ACCESS_TOKEN)
-parser = WebhookParser(settings.LINE_CHANNEL_SECRET)
+import openai, os
+openai.api_key = os.getenv("OPENAI_API_KEY")
+line_bot_api = LineBotApi(os.getenv("LINE_CHANNEL_ACCESS_TOKEN"))
+parser = WebhookParser(os.getenv("LINE_CHANNEL_SECRET"))
 
 
 @csrf_exempt
@@ -28,10 +29,15 @@ def callback(request):
 
         for event in events:
             if isinstance(event, MessageEvent):
-                mtext=event.message.text
-                message=[]
-                message.append(TextSendMessage(text=mtext))
-                line_bot_api.reply_message(event.reply_token,message)
+                user_id = event.source.user_id  # 取得LINE ID
+
+                if isinstance(event.message, TextMessage):
+                    mtext = event.message.text
+                    if mtext == '我的帳本':
+                        func.MyAccount(event)
+                    elif mtext[:3] == '###' and len(mtext) > 3:
+                        # func.OpenAI(mtext)
+                        func.Form(event, func.OpenAI(mtext), user_id)
 
         return HttpResponse()
     else:
