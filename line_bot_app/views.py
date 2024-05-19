@@ -8,7 +8,7 @@ from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbid
 from django.views.decorators.csrf import csrf_exempt
 import secrets
 import string
-from line_bot_app.models import GroupTable, PersonalTable,PersonalGroupLinkingTable
+from line_bot_app.models import GroupTable, PersonalTable,PersonalGroupLinkingTable#記得要改line_bot_app如果你和我不一樣
 from module import func
 from linebot import LineBotApi, WebhookParser
 from linebot.exceptions import InvalidSignatureError, LineBotApiError
