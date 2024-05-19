@@ -19,5 +19,6 @@ from django.urls import path
 from line_bot_app import views
 urlpatterns = [
     path('admin/', admin.site.urls),
-path('callback', views.callback),
+    path('callback', views.callback),
+     re_path(r'^Creategroup/$', views.CreateGroup),   #新增資料
 ]
