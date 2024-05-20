@@ -1,18 +1,21 @@
 import os
+import secrets
+import string
+from line_bot_app.models import GroupTable, PersonalTable,PersonalGroupLinkingTable#記得要改line_bot_app如果你和我不一樣
+
 from langchain_community.utilities import SQLDatabase
 from langchain_openai import ChatOpenAI
 from langchain_community.agent_toolkits import create_sql_agent
-import json
+
 from django.conf import settings
 from linebot import LineBotApi
 from openai import OpenAI
 from linebot.models import *
 from urllib.parse import quote
-import openai
 line_bot_api = LineBotApi(settings.LINE_CHANNEL_ACCESS_TOKEN)
-db = SQLDatabase.from_uri("mysql+mysqlconnector://root:0981429209@localhost:3306/my_project")
-openai.api_key = os.getenv("OPENAI_API_KEY")
-
+db = SQLDatabase.from_uri("mysql+mysqlconnector://root:123456789@localhost:3306/my_project")
+os.environ["OPENAI_API_KEY"] = settings.OPENAI_API_KEY
+llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
 
 def MyAccount(event):
     flex_message = FlexSendMessage(
@@ -154,29 +157,132 @@ def Form(event, text,user_id):
   )
   line_bot_api.reply_message(event.reply_token, flex_message)
 
-
-def OpenAI(mtext): #判斷類別和子類別
-
-    flist = mtext[3:].split('/')
-    User_input = flist[0]
-    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
-    agent_executor = create_sql_agent(llm, db=db, agent_type="openai-tools", verbose=True)
-    text1=agent_executor.invoke(
-
-    "User_input="+User_input+"\n"+
-
-    " ''' 不要由資料庫中{個人帳目_收入_支出_table}的來做判斷 ''' "+"\n"+
-
-    " ''' 根據資料庫中的{類別_個人_table}，判斷 User_input 這段用者敘述屬於哪一個{類別}，例如：食、衣、住、行"+"\n"+
-    "根據 User_input 判斷{金額}，{金額}是數字，不能用資料庫查詢，例如：200"+"\n"+
-    "根據 User_input 判斷{項目名稱}，不能用資料庫查詢，{項目名稱}是該筆帳目的簡介，例如：買麵包" + "\n" +
-    "根據 User_input 判斷{地點}，不能用資料庫查詢，{地點}是該筆帳目的發生地點，可以是地名或當地地標，例如：台南、安平古堡、師範大學"+ "\n" +
-    "根據 User_input 判斷{交易類型}，不能用資料庫查詢，{交易類型}有兩種：收入(薪水)或支出(購買商品、消費等行為)，例如：支出''' " + "\n" +
-
-
-    " '''輸出必須包含一個類別、項目名稱、金額、地點、時間，最後用指定格式輸出，無須任何其他輸出，範例：類別:\"類別A\",金額:\"100\",項目名稱:\"買麵包\",地點:\"中壢\",交易類型:\"收入\"，用繁體中文回答，前後不用任何文字''' "
+def creategroup(event):
+    flex_message = FlexSendMessage(
+      alt_text='Flex_message',
+      contents={
+        "type": "bubble",
+        "header": {
+          "type": "box",
+          "layout": "vertical",
+          "contents": [
+            {
+              "type": "text",
+              "text": "創建群組",
+              "color": "#FFFFFF",
+              "weight": "bold",
+              "size": "xl"
+            },
+          ]
+        },
+        "body": {
+          "type": "box",
+          "layout": "vertical",
+          "contents": [
+            {
+              "type": "button",
+              "action": {
+                "type": "uri",
+                "uri": "https://liff.line.me/2004983305-yZblg4aW",
+                "label": "創建"
+              }
+            }
+          ]
+        },
+        "styles": {
+          "header": {
+            "backgroundColor": "#00B900"
+          }
+        }
+      }
     )
-    T=text1.get('output')
-
-    print(User_input+"\n"+T)
-    return T
+    line_bot_api.reply_message(event.reply_token, flex_message)
+#創建群組
+def CreateGroup(mtext,user_id):
+    temp = mtext[6:]#取得井字號的後面
+    letters = string.ascii_letters#產生英文字母
+    digits = string.digits#產生字串
+    # 如果有和資料庫重複會重新生成
+    while True:
+        secure_random_string = ''.join(secrets.choice(letters) + secrets.choice(digits) for i in range(15))#數字和英文字母串接
+        if not GroupTable.objects.filter(group_code=secure_random_string).exists():
+            break
+    group_name = temp
+    group_code = secure_random_string
+    try:
+        #剛創建的群組加入資料庫
+        unit = GroupTable(group_name=group_name, group_code=group_code)
+        unit.save()
+        #抓取群組的id且把資料加入到linking table中
+        group = GroupTable.objects.get(group_id=unit.group_id)
+        user_instance = PersonalTable.objects.get(personal_id=user_id)
+        try:
+            unit3 = PersonalGroupLinkingTable.objects.create(personal=user_instance,group=group)
+            return '成功創建群組'
+        except Exception as e:
+            print(f"Error creating linking table record: {e}")
+    except Exception as e:
+        print(f"Error creating group: {e}")
+#joingroup的flex
+def joingroup(event):
+    flex_message = FlexSendMessage(
+      alt_text='Flex_message',
+      contents={
+        "type": "bubble",
+        "header": {
+          "type": "box",
+          "layout": "vertical",
+          "contents": [
+            {
+              "type": "text",
+              "text": "加入群組",
+              "color": "#FFFFFF",
+              "weight": "bold",
+              "size": "xl"
+            },
+          ]
+        },
+        "body": {
+          "type": "box",
+          "layout": "vertical",
+          "contents": [
+            {
+              "type": "button",
+              "action": {
+                "type": "uri",
+                "uri": "https://liff.line.me/2004983305-RQ7w3gVM",
+                "label": "加入"
+              }
+            }
+          ]
+        },
+        "styles": {
+          "header": {
+            "backgroundColor": "#00B900"
+          }
+        }
+      }
+    )
+    line_bot_api.reply_message(event.reply_token, flex_message)
+#加入群組
+def JoinGroup(mtext, user_id):
+    code = mtext[6:]  # 取得井字號的後面
+    #判斷使用者輸入有無此群組
+    unit2 = GroupTable.objects.filter(group_code=code)
+    if not unit2:
+        return '查無此群組，請重新輸入'
+    else:
+        # 判斷使用者是否有想要重複加入群組，去linkingtable看有沒有重複加入
+        group = GroupTable.objects.get(group_code=code)
+        user_instance = PersonalTable.objects.get(personal_id=user_id)
+        unit4 = PersonalGroupLinkingTable.objects.filter(personal=user_instance, group=group)
+        if unit4:
+            return '已經有加入該群組，若是要加入新群組請重新核對您的群組代碼'
+        else:
+            try:
+                user_instance = PersonalTable.objects.get(personal_id=user_id)
+                unit5 = PersonalGroupLinkingTable.objects.create(personal=user_instance,group=group)
+                return '成功加入群組'
+            except Exception as e:
+                print(f"Error creating linking table record: {e}")
+                return '加入群組時發生錯誤，請稍後再試'
