@@ -15,10 +15,14 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path,repath
+from django.urls import path
 from line_bot_app import views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('callback', views.callback),
-     re_path(r'^Creategroup/$', views.CreateGroup),   #新增資料
+    path('search',views.search),
+    path('liff-add',views.liff_add),
+    path('personal_account_form',views.personal_account_form),#new
+    path('get_user_account',views.get_user_account),
+    path('get_user_account_info',views.get_user_account_info),#new
 ]
