@@ -1,202 +1,25 @@
 import os
 import secrets
 import string
-from line_bot_app.models import GroupTable, PersonalTable,PersonalGroupLinkingTable#記得要改line_bot_app如果你和我不一樣
-
+from line_bot_app.models import *
 from langchain_community.utilities import SQLDatabase
 from langchain_openai import ChatOpenAI
-from langchain_community.agent_toolkits import create_sql_agent
-
+from module.langchain_tool import *
+from langchain.agents import load_tools, initialize_agent
+from langchain.agents import AgentType
+from langchain.tools import BaseTool
+from openai import OpenAI#new
 from django.conf import settings
 from linebot import LineBotApi
-from openai import OpenAI
-from linebot.models import *
+import json
 from urllib.parse import quote
+from module.langchain_tool import *
 line_bot_api = LineBotApi(settings.LINE_CHANNEL_ACCESS_TOKEN)
-db = SQLDatabase.from_uri("mysql+mysqlconnector://root:123456789@localhost:3306/my_project")
+db = SQLDatabase.from_uri("mysql+mysqlconnector://root:0981429209@localhost:3306/my_project")
 os.environ["OPENAI_API_KEY"] = settings.OPENAI_API_KEY
 llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
-
-def MyAccount(event):
-    flex_message = FlexSendMessage(
-        alt_text='Flex_message',
-        contents={
-          "type": "bubble",
-          "header": {
-            "type": "box",
-            "layout": "vertical",
-            "contents": [
-              {
-                "type": "text",
-                "text": "我的帳本",
-                "color": "#FFFFFF",
-                "weight": "bold",
-                "size": "xl"
-              },
-              {
-                "type": "text",
-                "text": "請選擇要進行的操作",
-                "color": "#FFFFFF",
-                "weight": "regular"
-              }
-            ]
-          },
-          "body": {
-            "type": "box",
-            "layout": "vertical",
-            "contents": [
-              {
-                "type": "button",
-                "action": {
-                  "type": "uri",
-                  "uri": "https://liff.line.me/2004983305-Wxv3l2rx",
-                  "label": "記帳"
-                }
-              },
-              {
-                "type": "button",
-                "action": {
-                  "type": "uri",
-                  "label": "查詢帳本",
-                  "uri": "https://liff.line.me/2004983305-2LqXBLZr"
-                }
-              }
-            ]
-          },
-          "styles": {
-            "header": {
-              "backgroundColor": "#00B900"
-            }
-          }
-        }
-    )
-    line_bot_api.reply_message(event.reply_token, flex_message)
-
-
-
-def manageForm(event, mtext, user_id):  # 處理LIFF傳回的from資料
-  try:
-    flist = mtext[3:].split('/')  # 去除前三個#再分解字串
-    User_imput = flist[0]  # 取得輸入資料
-
-
-    text1 = User_imput
-    message = TextSendMessage(
-      text=text1
-    )
-    line_bot_api.reply_message(event.reply_token, message)
-
-  except:
-    line_bot_api.reply_message(event.reply_token, TextSendMessage(text='發生錯誤'))
-
-
-def Form(event, text,user_id):
-
-  category = text.split(',')[0].split(':')[1].strip().strip('"')
-  amount = int(text.split(',')[1].split(':')[1].strip().strip('"'))
-  item = text.split(',')[2].split(':')[1].strip().strip('"')
-  location = text.split(',')[3].split(':')[1].strip().strip('"')
-  transaction_type = text.split(',')[4].split(':')[1].strip().strip('"')
-  #print(location)
-  query_params = {
-    "category": category,
-    "amount": amount,
-    "item": item,
-    "location": location,
-    "transaction_type": transaction_type,
-    "user_id": user_id
-  }
-  query_params_encoded = {key: quote(str(value)) for key, value in query_params.items()}
-
-  query_string = "&".join([f"{key}={value}" for key, value in query_params_encoded.items()])
-  url = f"https://line-lift-form.vercel.app?{query_string}"
-
-  flex_message = FlexSendMessage(
-    alt_text='Flex_message',
-    contents={
-      "type": "bubble",
-      "header": {
-        "type": "box",
-        "layout": "vertical",
-        "contents": [
-          {
-            "type": "text",
-            "text": "選單",
-            "color": "#FFFFFF",
-            "weight": "bold",
-            "size": "xl"
-          },
-          {
-            "type": "text",
-            "text": "請完成選單",
-            "color": "#FFFFFF",
-            "weight": "regular"
-          }
-        ]
-      },
-      "body": {
-        "type": "box",
-        "layout": "vertical",
-        "contents": [
-          {
-            "type": "button",
-            "action": {
-              "type": "uri",
-              "uri": url,
-              "label": "選單內容"
-            }
-          },
-        ]
-      },
-      "styles": {
-        "header": {
-          "backgroundColor": "#00B900"
-        }
-      }
-    }
-  )
-  line_bot_api.reply_message(event.reply_token, flex_message)
-
-def creategroup(event):
-    flex_message = FlexSendMessage(
-      alt_text='Flex_message',
-      contents={
-        "type": "bubble",
-        "header": {
-          "type": "box",
-          "layout": "vertical",
-          "contents": [
-            {
-              "type": "text",
-              "text": "創建群組",
-              "color": "#FFFFFF",
-              "weight": "bold",
-              "size": "xl"
-            },
-          ]
-        },
-        "body": {
-          "type": "box",
-          "layout": "vertical",
-          "contents": [
-            {
-              "type": "button",
-              "action": {
-                "type": "uri",
-                "uri": "https://liff.line.me/2004983305-yZblg4aW",
-                "label": "創建"
-              }
-            }
-          ]
-        },
-        "styles": {
-          "header": {
-            "backgroundColor": "#00B900"
-          }
-        }
-      }
-    )
-    line_bot_api.reply_message(event.reply_token, flex_message)
+GPT_MODEL = "gpt-3.5-turbo-0613"#new
+client = OpenAI()#new
 #創建群組
 def CreateGroup(mtext,user_id):
     temp = mtext[6:]#取得井字號的後面
@@ -223,47 +46,7 @@ def CreateGroup(mtext,user_id):
             print(f"Error creating linking table record: {e}")
     except Exception as e:
         print(f"Error creating group: {e}")
-#joingroup的flex
-def joingroup(event):
-    flex_message = FlexSendMessage(
-      alt_text='Flex_message',
-      contents={
-        "type": "bubble",
-        "header": {
-          "type": "box",
-          "layout": "vertical",
-          "contents": [
-            {
-              "type": "text",
-              "text": "加入群組",
-              "color": "#FFFFFF",
-              "weight": "bold",
-              "size": "xl"
-            },
-          ]
-        },
-        "body": {
-          "type": "box",
-          "layout": "vertical",
-          "contents": [
-            {
-              "type": "button",
-              "action": {
-                "type": "uri",
-                "uri": "https://liff.line.me/2004983305-RQ7w3gVM",
-                "label": "加入"
-              }
-            }
-          ]
-        },
-        "styles": {
-          "header": {
-            "backgroundColor": "#00B900"
-          }
-        }
-      }
-    )
-    line_bot_api.reply_message(event.reply_token, flex_message)
+
 #加入群組
 def JoinGroup(mtext, user_id):
     code = mtext[6:]  # 取得井字號的後面
@@ -286,3 +69,79 @@ def JoinGroup(mtext, user_id):
             except Exception as e:
                 print(f"Error creating linking table record: {e}")
                 return '加入群組時發生錯誤，請稍後再試'
+#new
+def classification(text,user_id,transaction_type):
+    user_category=PersonalCategoryTable.objects.filter(personal=user_id,transaction_type=transaction_type)
+    user_category_set=[]
+    for category in user_category:
+        category_name = category.category_name
+        user_category_set.append(category_name)
+    user_category_set_str = ', '.join(user_category_set)
+    #類別
+    agent = get_category_classification_tool(llm)
+    data = agent(f"=使用者輸入：{text}，類別:{user_category_set_str}，請替使用者的輸入做帳目的分類")['output']
+    new_data = str(data)
+    #項目
+    agent2 = create_item_name_tool(llm)
+    data2= agent2(f"使用者輸入：{text}，請替使用者的輸入擷取花費項目")['output']
+    new_data2 = str(data2)
+    #金額、地點
+    messages = []
+    messages.append({"role": "system", "content": "Don't make assumptions about what values to plug into functions. Ask for clarification if a user request is ambiguous."})
+    messages.append({"role": "user", "content": text})
+    chat_response = get_payment_location(
+        messages, tools=tools
+    )
+    assistant_message = chat_response.choices[0].message
+    messages.append(assistant_message)
+    tool_call = assistant_message.tool_calls[0].function.arguments
+    data = json.loads(tool_call)
+    payment = data["金額"]
+    new_payment = str(payment)
+    location = data["地點"]
+    return_data = {
+        'category': new_data,
+        'item': new_data2,
+        'payment':new_payment,
+        'location':location,
+        'transaction_type':transaction_type
+    }
+    return return_data
+#new
+def get_payment_location(messages, tools=None, tool_choice=None, model=GPT_MODEL):
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            tools=tools,
+            tool_choice=tool_choice,
+        )
+        return response
+    except Exception as e:
+        print("Unable to generate ChatCompletion response")
+        print(f"Exception: {e}")
+        return e
+tools= [
+        {
+            "type": "function",
+            "function":{
+                "name": "get_record_info",
+                "description": """給了一個記帳資訊，請你幫我抓出地點、費用，此外幫我預測是什麼的類別
+                """,
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "金額": {
+                            "type": "integer",
+                            "description": "花費紀錄的金額. e.g 200",
+                        },
+                        "地點": {
+                            "type": "string",
+                            "description": "花費紀錄的項目. e.g 麥當勞",
+                        },
+                    },
+                },
+            },
+        },
+]
+
